@@ -54,6 +54,7 @@ from tqdm import tqdm
 import open3d as o3d
 import cv2
 import trimesh
+import logging
 
 from .grasp import Grasp, GraspGroup, RectGrasp, RectGraspGroup, RECT_GRASP_ARRAY_LEN
 from .utils.utils import transform_points, parse_posevector
@@ -67,7 +68,7 @@ def _isArrayLike(obj):
 
 
 class GraspNet():
-    def __init__(self, root, camera='kinect', split='train'):
+    def __init__(self, root, camera='kinect', split='train', rect_label_root=None):
         '''
 
         graspnetAPI main class.
@@ -106,6 +107,9 @@ class GraspNet():
         self.sceneName = []
         self.annId = []
 
+        if rect_label_root is None:
+            rect_label_root = root
+
         for i in tqdm(self.sceneIds, desc='Loading data path...'):
             for img_num in range(256):
                 self.rgbPath.append(os.path.join(
@@ -117,7 +121,7 @@ class GraspNet():
                 self.metaPath.append(os.path.join(
                     root, 'scenes', 'scene_'+str(i).zfill(4), camera, 'meta', str(img_num).zfill(4)+'.mat'))
                 self.rectLabelPath.append(os.path.join(
-                    root, 'scenes', 'scene_'+str(i).zfill(4), camera, 'rect', str(img_num).zfill(4)+'.npy'))
+                    rect_label_root, 'scenes', 'scene_'+str(i).zfill(4), camera, 'rect', str(img_num).zfill(4)+'.npy'))
                 self.sceneName.append('scene_'+str(i).zfill(4))
                 self.annId.append(img_num)
 
@@ -168,10 +172,10 @@ class GraspNet():
                     print('No cam0_wrt_table.npy For Scene {}, Camera:{}'.format(sceneId, camera))
                 if not os.path.exists(os.path.join(camera_dir,'camera_poses.npy')):
                     error_flag = True
-                    print('No camera_poses.npy For Scene {}, Camera:{}'.format(sceneId, camera)) 
+                    print('No camera_poses.npy For Scene {}, Camera:{}'.format(sceneId, camera))
                 if not os.path.exists(os.path.join(camera_dir,'camK.npy')):
                     error_flag = True
-                    print('No camK.npy For Scene {}, Camera:{}'.format(sceneId, camera))   
+                    print('No camK.npy For Scene {}, Camera:{}'.format(sceneId, camera))
                 for annId in range(256):
                     if not os.path.exists(os.path.join(camera_dir,'rgb','%04d.png' % annId)):
                         error_flag = True
@@ -267,7 +271,7 @@ class GraspNet():
 
         **Output:**
 
-        - a dict of grasplabels of each object. 
+        - a dict of grasplabels of each object.
         '''
         # load object-level grasp labels of the given obj ids
         objIds = self.objIds if objIds is None else objIds
@@ -328,7 +332,7 @@ class GraspNet():
     def loadCollisionLabels(self, sceneIds=None):
         '''
         **Input:**
-        
+
         - sceneIds: int or list of int of the scene ids.
 
         **Output:**
@@ -352,7 +356,7 @@ class GraspNet():
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -368,7 +372,7 @@ class GraspNet():
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -384,7 +388,7 @@ class GraspNet():
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -394,13 +398,13 @@ class GraspNet():
         - numpy array of the depth with dtype = np.uint16
         '''
         return cv2.imread(os.path.join(self.root, 'scenes', 'scene_%04d' % sceneId, camera, 'depth', '%04d.png' % annId), cv2.IMREAD_UNCHANGED)
- 
+
     def loadMask(self, sceneId, camera, annId):
         '''
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -410,13 +414,13 @@ class GraspNet():
         - numpy array of the mask with dtype = np.uint16
         '''
         return cv2.imread(os.path.join(self.root, 'scenes', 'scene_%04d' % sceneId, camera, 'label', '%04d.png' % annId), cv2.IMREAD_UNCHANGED)
-   
+
     def loadWorkSpace(self, sceneId, camera, annId):
         '''
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -431,7 +435,7 @@ class GraspNet():
         x1 = np.argmax(maskx)
         y1 = np.argmax(masky)
         x2 = len(maskx) - np.argmax(maskx[::-1])
-        y2 = len(masky) - np.argmax(masky[::-1]) 
+        y2 = len(masky) - np.argmax(masky[::-1])
         return (x1, y1, x2, y2)
 
     def loadScenePointCloud(self, sceneId, camera, annId, align=False, format = 'open3d', use_workspace = False, use_mask = True, use_inpainting = False):
@@ -439,7 +443,7 @@ class GraspNet():
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -472,7 +476,7 @@ class GraspNet():
         fx, fy = intrinsics[0,0], intrinsics[1,1]
         cx, cy = intrinsics[0,2], intrinsics[1,2]
         s = 1000.0
-        
+
         if align:
             camera_poses = np.load(os.path.join(self.root, 'scenes', 'scene_%04d' % sceneId, camera, 'camera_poses.npy'))
             camera_pose = camera_poses[annId]
@@ -521,7 +525,7 @@ class GraspNet():
         **Input:**
 
         - sceneId: int of the scene index.
-        
+
         - camera: string of type of camera, 'realsense' or 'kinect'
 
         - annId: int of the annotation index.
@@ -576,7 +580,7 @@ class GraspNet():
 
         - collision_labels: dict of collision labels. Call self.loadCollisionLabels if not given.
 
-        - fric_coef_thresh: float of the frcition coefficient threshold of the grasp. 
+        - fric_coef_thresh: float of the frcition coefficient threshold of the grasp.
 
         **ATTENTION**
 
@@ -594,7 +598,7 @@ class GraspNet():
             from .utils.xmlhandler import xmlReader
             from .utils.utils import get_obj_pose_list, generate_views, get_model_grasps, transform_points
             from .utils.rotation import batch_viewpoint_params_to_matrix
-            
+
             camera_poses = np.load(os.path.join(self.root,'scenes','scene_%04d' %(sceneId,),camera, 'camera_poses.npy'))
             camera_pose = camera_poses[annId]
             scene_reader = xmlReader(os.path.join(self.root,'scenes','scene_%04d' %(sceneId,),camera,'annotations','%04d.xml' %(annId,)))
@@ -678,7 +682,7 @@ class GraspNet():
         '''
         if ids is None:
             return (self.rgbPath, self.depthPath, self.segLabelPath, self.metaPath, self.rectLabelPath, self.sceneName, self.annId)
-        
+
         if len(extargs) == 0:
             if isinstance(ids, int):
                 return (self.rgbPath[ids], self.depthPath[ids], self.segLabelPath[ids], self.metaPath[ids], self.rectLabelPath[ids], self.sceneName[ids], self.annId[ids])
@@ -751,7 +755,8 @@ class GraspNet():
         if format == '6d':
             geometries = []
             sceneGrasp = self.loadGrasp(sceneId = sceneId, annId = annId, camera = camera, format = '6d', fric_coef_thresh = coef_fric_thresh)
-            sceneGrasp = sceneGrasp.random_sample(numGrasp = numGrasp)
+            sceneGrasp = sceneGrasp.random_sample(numGrasp = numGrasp)[:3]
+            sceneGrasp.grasp_group_array[2, 14] += 0.04
             scenePCD = self.loadScenePointCloud(sceneId = sceneId, camera = camera, annId = annId, align = False)
             geometries.append(scenePCD)
             geometries += sceneGrasp.to_open3d_geometry_list()
@@ -772,7 +777,7 @@ class GraspNet():
         '''
         **Input:**
 
-        - sceneIds: int or list of scene ids. 
+        - sceneIds: int or list of scene ids.
 
         - saveFolder: string of the folder to store the image.
 
@@ -781,7 +786,7 @@ class GraspNet():
         - perObj: bool, show grasps on each object
 
         **Output:**
-        
+
         - No output but to save the rendered image and maybe show the result.
         '''
         from .utils.vis import vis6D

@@ -158,7 +158,7 @@ def generate_scene_pointcloud(dataset_root, scene_name, anno_idx, align=False, c
     fx, fy = intrinsics[0,0], intrinsics[1,1]
     cx, cy = intrinsics[0,2], intrinsics[1,2]
     s = 1000.0
-    
+
     if align:
         camera_poses = np.load(os.path.join(dataset_root, 'scenes', scene_name, camera, 'camera_poses.npy'))
         camera_pose = camera_poses[anno_idx]
@@ -242,13 +242,13 @@ def matrix_to_dexnet_params(matrix):
     Author: chenxi-wang
 
     **Input:**
-    
+
     - numpy array of shape (3, 3) of the rotation matrix.
 
     **Output:**
 
     - binormal: numpy array of shape (3,).
-    
+
     - angle: float of the angle.
     '''
     approach = matrix[:, 0]
@@ -303,7 +303,7 @@ def dexnet_params_to_matrix(binormal, angle):
     **Input:**
 
     - binormal: numpy array of shape (3,).
-    
+
     - angle: float of the angle.
 
     **Output:**
@@ -327,11 +327,11 @@ def dexnet_params_to_matrix(binormal, angle):
 def transform_points(points, trans):
     '''
     Author: chenxi-wang
-    
+
     **Input:**
 
     - points: numpy array of (N,3), point cloud
-    
+
     - trans: numpy array of (4,4), transformation matrix
 
     **Output:**
@@ -395,7 +395,7 @@ def create_mesh_box(width, height, depth, dx=0, dy=0, dz=0):
 def create_table_cloud(width, height, depth, dx=0, dy=0, dz=0, grid_size=0.01):
     '''
     Author: chenxi-wang
-    
+
     **Input:**
 
     - width/height/depth: float, table width/height/depth along x/z/y-axis in meters
@@ -453,7 +453,7 @@ def plot_axis(R,center,length,grid_size = 0.01):
 def plot_gripper_pro_max(center, R, width, depth, score=1, color=None):
     '''
     Author: chenxi-wang
-    
+
     **Input:**
 
     - center: numpy array of (3,), target point as gripper center
@@ -473,14 +473,19 @@ def plot_gripper_pro_max(center, R, width, depth, score=1, color=None):
     finger_width = 0.004
     tail_length = 0.04
     depth_base = 0.02
-    
+
     if color is not None:
         color_r, color_g, color_b = color
     else:
-        color_r = score # red for high score
-        color_g = 0
-        color_b = 1 - score # blue for low score
-    
+        if score != 0:
+            color_r = score # red for high score
+            color_g = 0
+            color_b = 1 - score # blue for low score
+        else:
+            color_r = 0
+            color_g = 0
+            color_b = 0
+
     left = create_mesh_box(depth+depth_base+finger_width, finger_width, height)
     right = create_mesh_box(depth+depth_base+finger_width, finger_width, height)
     bottom = create_mesh_box(finger_width, width, height)
@@ -610,9 +615,9 @@ def batch_rgbdxyz_2_rgbxy_depth(points, camera):
     ###################################
     # x and y should be inverted here #
     ###################################
-    # y = point[0] / point[2] * fx + cx 
+    # y = point[0] / point[2] * fx + cx
     # x = point[1] / point[2] * fy + cy
-    # cx = 640, cy = 360 
+    # cx = 640, cy = 360
     coords_x = points[:,0] / points[:,2] * fx + cx
     coords_y = points[:,1] / points[:,2] * fy + cy
     coords = np.stack([coords_x, coords_y], axis=-1)
@@ -649,7 +654,7 @@ def batch_key_points_2_tuple(key_points, scores, object_ids, camera):
     **Input:**
 
     - key_points: np.array(-1,4,3) of grasp key points, definition is shown in key_points.png
-    
+
     - scores: numpy array of batch grasp scores.
 
     - camera: string of 'realsense' or 'kinect'.
@@ -672,15 +677,15 @@ def framexy_depth_2_xyz(pixel_x, pixel_y, depth, camera):
     **Input:**
 
     - pixel_x: int of the pixel x coordinate.
-    
+
     - pixel_y: int of the pixle y coordicate.
-    
+
     - depth: float of depth. The unit is millimeter.
-    
+
     - camera: string of type of camera. "realsense" or "kinect".
-    
+
     **Output:**
-    
+
     - x, y, z: float of x, y and z coordinates in camera frame. The unit is millimeter.
     '''
     intrinsics = get_camera_intrinsic(camera)
@@ -753,6 +758,13 @@ def batch_center_depth(depths, centers, open_points, upper_points):
     y = np.round(centers[:,1]).astype(np.int32)
     return depths[y, x]
 
+def batch_center_area_depth(depths, centers, open_points, upper_points):
+    x = np.round(centers[:,0]).astype(np.int32)
+    y = np.round(centers[:,1]).astype(np.int32)
+    heights = np.linalg.norm(centers - upper_points, axis=1)
+    return np.min(depths[np.array([np.arange(int(yt1), int(yt2), dtype=int).clip(max=719) for yt1, yt2 in zip(y-10, y+10)]),
+                         np.array([np.arange(int(xt1), int(xt2), dtype=int).clip(max=1239) for xt1, xt2 in zip(x-10, x+10)])], axis=1)
+
 def key_point_2_rotation(center_xyz, open_point_xyz, upper_point_xyz):
     '''
     **Input:**
@@ -772,8 +784,8 @@ def key_point_2_rotation(center_xyz, open_point_xyz, upper_point_xyz):
     unit_open_point_vector = open_point_vector / np.linalg.norm(open_point_vector)
     unit_upper_point_vector = upper_point_vector / np.linalg.norm(upper_point_vector)
     rotation = np.hstack((
-        np.array([[0],[0],[1.0]]), 
-        unit_open_point_vector.reshape((-1, 1)), 
+        np.array([[0],[0],[1.0]]),
+        unit_open_point_vector.reshape((-1, 1)),
         unit_upper_point_vector.reshape((-1, 1))
     ))
     return rotation

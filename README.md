@@ -1,3 +1,5 @@
+This is a fork with additional functionality for saving results of evaluating grasps.
+
 # graspnetAPI
 [![PyPI version](https://badge.fury.io/py/graspnetAPI.svg)](https://badge.fury.io/py/graspnetAPI)
 
@@ -5,24 +7,11 @@
 
 Visit the [GraspNet Website](http://graspnet.net) to get the dataset.
 
-## Install
-You can install using pip.
-```bash
-pip install graspnetAPI
-```
-
-You can also install from source.
-
-```bash
-git clone https://github.com/graspnet/graspnetAPI.git
-cd graspnetAPI
-pip install .
-```
 
 ## Document
 
-Refer to [online document](https://graspnetapi.readthedocs.io/en/latest/index.html) for more details.  
-[PDF Document](https://graspnetapi.readthedocs.io/_/downloads/en/latest/pdf/) is available, too. 
+Refer to [online document](https://graspnetapi.readthedocs.io/en/latest/index.html) for more details.
+[PDF Document](https://graspnetapi.readthedocs.io/_/downloads/en/latest/pdf/) is available, too.
 
 You can also build the doc manually.
 ```bash
@@ -34,7 +23,7 @@ bash build_doc.sh
 LaTeX is required to build the pdf, but html can be built anyway.
 
 ## Grasp Definition
-The frame of our gripper is defined as 
+The frame of our gripper is defined as
 <div align="center">
     <img src="grasp_definition.png", width="400">
 </div>

@@ -34,7 +34,7 @@ class Grasp():
             self.grasp_array = np.concatenate([np.array((score, width, height, depth)),rotation_matrix.reshape(-1), translation, np.array((object_id)).reshape(-1)]).astype(np.float64)
         else:
             raise ValueError('only 1 or 7 arguments are accepted')
-    
+
     def __repr__(self):
         return 'Grasp: score:{}, width:{}, height:{}, depth:{}, translation:{}\nrotation:\n{}\nobject id:{}'.format(self.score, self.width, self.height, self.depth, self.translation, self.rotation_matrix, self.object_id)
 
@@ -64,7 +64,7 @@ class Grasp():
         - float of the width.
         '''
         return float(self.grasp_array[1])
-    
+
     @width.setter
     def width(self, width):
         '''
@@ -91,7 +91,7 @@ class Grasp():
         - float of the height.
         '''
         self.grasp_array[2] = height
-    
+
     @property
     def depth(self):
         '''
@@ -179,7 +179,7 @@ class Grasp():
         **Input:**
 
         - T: np.array of shape (4, 4)
-        
+
         **Output:**
 
         - Grasp instance after transformation, the original Grasp will also be changed.
@@ -275,7 +275,7 @@ class GraspGroup():
         - numpy array of shape (-1, ) of the scores.
         '''
         return self.grasp_group_array[:,0]
-    
+
     @scores.setter
     def scores(self, scores):
         '''
@@ -294,7 +294,7 @@ class GraspGroup():
         - numpy array of shape (-1, ) of the widths.
         '''
         return self.grasp_group_array[:,1]
-    
+
     @widths.setter
     def widths(self, widths):
         '''
@@ -360,7 +360,7 @@ class GraspGroup():
         - rotation_matrices: numpy array of shape (-1, 3, 3) of the rotation_matrices.
         '''
         assert rotation_matrices.shape == (len(self), 3, 3)
-        self.grasp_group_array[:,4:13] = copy.deepcopy(rotation_matrices.reshape((-1, 9)))       
+        self.grasp_group_array[:,4:13] = copy.deepcopy(rotation_matrices.reshape((-1, 9)))
 
     @property
     def translations(self):
@@ -405,7 +405,7 @@ class GraspGroup():
         **Input:**
 
         - T: np.array of shape (4, 4)
-        
+
         **Output:**
 
         - GraspGroup instance after transformation, the original GraspGroup will also be changed.
@@ -467,7 +467,7 @@ class GraspGroup():
             g = Grasp(self.grasp_group_array[i])
             geometry.append(g.to_open3d_geometry())
         return geometry
-    
+
     def sort_by_score(self, reverse = False):
         '''
         **Input:**
@@ -510,7 +510,7 @@ class GraspGroup():
         - camera: string of type of camera, 'realsense' or 'kinect'.
 
         **Output:**
-        
+
         - RectGraspGroup instance or None.
         '''
         tranlations = self.translations
@@ -527,7 +527,7 @@ class GraspGroup():
         scores = scores[mask]
         rotations = rotations[mask]
         object_ids = object_ids[mask]
-        
+
         if tranlations.shape[0] == 0:
             return None
 
@@ -574,7 +574,7 @@ class RectGrasp():
             self.rect_grasp_array = np.array(args).astype(np.float64)
         else:
             raise ValueError('only one or six arguments are accepted')
-    
+
     def __repr__(self):
         return 'Rectangle Grasp: score:{}, height:{}, open point:{}, center point:{}, object id:{}'.format(self.score, self.height, self.open_point, self.center_point, self.object_id)
 
@@ -586,7 +586,7 @@ class RectGrasp():
         - float of the score.
         '''
         return self.rect_grasp_array[5]
-    
+
     @score.setter
     def score(self, score):
         '''
@@ -681,7 +681,7 @@ class RectGrasp():
     def to_opencv_image(self, opencv_rgb):
         '''
         **input:**
-        
+
         - opencv_rgb: numpy array of opencv BGR format.
 
         **Output:**
@@ -743,7 +743,7 @@ class RectGrasp():
         upper_point_xyz = np.array(framexy_depth_2_xyz(upper_point[0], upper_point[1], depth_2d, camera))
         depth = 0.02
         height = np.linalg.norm(upper_point_xyz - center_xyz) * 2
-        width = np.linalg.norm(open_point_xyz - center_xyz) * 2 
+        width = np.linalg.norm(open_point_xyz - center_xyz) * 2
         score = self.score
         object_id = self.object_id
         translation = center_xyz
@@ -779,7 +779,7 @@ class RectGraspGroup():
         - int of the length.
         '''
         return len(self.rect_grasp_group_array)
-    
+
     def __repr__(self):
         repr = '----------\nRectangle Grasp Group, Number={}:\n'.format(self.__len__())
         if self.__len__() <= 10:
@@ -792,7 +792,7 @@ class RectGraspGroup():
             for i in range(5):
                 repr += RectGrasp(self.rect_grasp_group_array[-(5-i)]).__repr__() + '\n'
         return repr + '----------'
-            
+
     def __getitem__(self, index):
         '''
         **Input:**
@@ -946,7 +946,7 @@ class RectGraspGroup():
     def to_opencv_image(self, opencv_rgb, numGrasp = 0):
         '''
         **input:**
-        
+
         - opencv_rgb: numpy array of opencv BGR format.
 
         - numGrasp: int of the number of grasp, 0 for all.
@@ -985,13 +985,15 @@ class RectGraspGroup():
         '''
         open_points = self.open_points # (-1, 2)
         centers = self.center_points # (-1, 2)
-        heights = (self.heights).reshape((-1, 1)) # (-1, )
+        heights = (self.heights).reshape(-1, 1) # (-1, )
+
         open_point_vector = open_points - centers
+
         norm_open_point_vector = np.linalg.norm(open_point_vector, axis = 1).reshape(-1, 1)
-        unit_open_point_vector = open_point_vector / np.hstack((norm_open_point_vector, norm_open_point_vector)) # (-1, 2)
+        unit_open_point_vector = open_point_vector / norm_open_point_vector # (-1, 2)
         counter_clock_wise_rotation_matrix = np.array([[0,-1], [1, 0]])
-        # upper_points = np.dot(counter_clock_wise_rotation_matrix, unit_open_point_vector.reshape(-1, 2, 1)).reshape(-1, 2) * np.hstack([heights, heights]) / 2 + centers # (-1, 2)
-        upper_points = np.einsum('ij,njk->nik', counter_clock_wise_rotation_matrix, unit_open_point_vector.reshape(-1, 2, 1)).reshape(-1, 2) * np.hstack([heights, heights]) / 2 + centers # (-1, 2)
+        upper_points = np.dot(unit_open_point_vector, counter_clock_wise_rotation_matrix.T) * heights + centers
+
         return centers, open_points, upper_points
 
     def to_grasp_group(self, camera, depths, depth_method = batch_center_depth):
@@ -1012,7 +1014,7 @@ class RectGraspGroup():
         '''
         centers, open_points, upper_points = self.batch_get_key_points()
         # print(f'centers:{centers}\nopen points:{open_points}\nupper points:{upper_points}')
-        depths_2d = depth_method(depths, centers, open_points, upper_points) / 1000.0
+        depths_2d = depth_method(depths, centers, open_points, upper_points) / 1000.0 - 0.02
         # print(f'depths_3d:{depths_2d}')
         valid_mask1 = np.abs(depths_2d) > EPS
         valid_mask2 = np.linalg.norm(centers - open_points, axis =1) > EPS
